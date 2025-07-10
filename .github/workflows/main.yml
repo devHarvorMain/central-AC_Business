@@ -1,0 +1,55 @@
+name: Sync to Assembla via SSH
+
+on:
+  push:
+    branches:
+      - master  # or 'main'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      REPO_DIR: repo # Define the local directory name for the cloned repo
+      ASSEMBLA_SSH_URL: git@in-git.assembla.com:emdev/testworkspace.central-AC_Business.git # Define the Assembla SSH URL
+
+    steps:
+      - name: Set up SSH key for Assembla
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ASSEMBLA_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # Add in-git.assembla.com to known_hosts to prevent host key checking prompt
+          ssh-keyscan in-git.assembla.com >> ~/.ssh/known_hosts
+      - name: Clone full GitHub repo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} ${{ env.REPO_DIR }}
+          cd ${{ env.REPO_DIR }}
+          git checkout ${{ github.ref_name }} # Ensure we are on the correct branch
+      - name: Install git-filter-repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install git-filter-repo
+      - name: Rewrite history to remove .github folder
+        run: |
+          cd ${{ env.REPO_DIR }}
+          # Use git filter-repo to remove the .github folder from all commits
+          # --invert-paths means remove the specified path, keeping everything else
+          # --force is added here to bypass the "not a fresh clone" error
+          git filter-repo --path .github --invert-paths --force
+          
+          # Remove the original 'origin' remote after history rewrite
+          # This prevents accidentally pushing the rewritten history back to GitHub
+          git remote remove origin || true
+      - name: Push to Assembla (with rewritten history)
+        env:
+          # Use the SSH key and disable strict host key checking for Git operations
+          GIT_SSH_COMMAND: "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+        run: |
+          cd ${{ env.REPO_DIR }}
+          git remote add assembla ${{ env.ASSEMBLA_SSH_URL }}
+          # Force push the rewritten master branch to the master branch on Assembla
+          # Explicitly state local:remote branch mapping to be absolutely clear
+          git push assembla master:master --force
