@@ -1,0 +1,6 @@
+@AC_Business_HostAddress = http://localhost:5223
+
+GET {{AC_Business_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
