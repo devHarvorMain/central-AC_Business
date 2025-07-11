@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REPO_DIR: repo # Define the local directory name for the cloned repo
-      ASSEMBLA_SSH_URL: git@in-git.assembla.com:emdev/testworkspace.central-AC_Business.git # Define the Assembla SSH URL
+      ASSEMBLA_SSH_URL: git@git.assembla.com:harvorcapital/harvor.Acorre.git # Define the Assembla SSH URL
 
     steps:
       - name: Set up SSH key for Assembla
